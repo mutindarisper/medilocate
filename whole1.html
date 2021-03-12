@@ -1,0 +1,357 @@
+<html>
+<head>
+  <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Query features from a FeatureLayer | Sample | ArcGIS API for JavaScript 4.18</title>
+    <script src="https://code.jquery.com/jquery-3.1.0.min.js" integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s=" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet@1.0.1/dist/leaflet.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Specialists</title>
+
+  <link rel='shortcut icon' type='image/x-icon' href='favicon.ico' />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+  
+
+   <!-- Load Leaflet from CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+    crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+    integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+    crossorigin=""></script>
+
+
+  <!-- Load Esri Leaflet from CDN -->
+  <script src="https://unpkg.com/esri-leaflet@3.0.0/dist/esri-leaflet.js"></script>
+  <script src="https://unpkg.com/esri-leaflet-vector@3.0.0/dist/esri-leaflet-vector.js"></script>
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.js'></script>
+<link href='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.css' rel='stylesheet' />
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.18/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.18/"></script>
+
+   <style>
+        html,
+        body,
+        #viewDiv {
+          height: 100%;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+        }
+
+        #infoDiv {
+          background-color: white;
+          color: black;
+          padding: 6px;
+          width: 400px;
+        }
+
+        #results {
+          font-weight: bolder;
+          padding-top: 10px;
+        }
+        .slider{
+          width: 100%;
+          height: 60px;
+        }
+        #drop-downs{
+          padding-bottom: 15px;
+        }
+      </style>
+
+
+</head>
+
+  <script>
+
+    require([
+          "esri/Map",
+          "esri/views/MapView",
+          "esri/layers/FeatureLayer",
+          "esri/layers/GraphicsLayer",
+          "esri/geometry/geometryEngine",
+          "esri/Graphic",
+          "esri/widgets/Slider"
+        ], function(Map, MapView, FeatureLayer, GraphicsLayer, geometryEngine, Graphic, Slider) {
+           const smartUtilsLayer = L.esri.featureLayer({
+      url: "https://services8.arcgis.com/SOqSu0Nc0YVnxZDD/arcgis/rest/services/service_e57b964e2c1c4340aaa10586746347c7/FeatureServer/0"})
+      
+           var locateBuffer, locateGeometries, specialistsGeometries;
+           var specialistTypeSelect = document.getElementById("specialist-type");
+           var distanceSlider = new Slider({
+            container: "distance",
+            min: 100,
+            max: 10000,
+            steps: 100,
+            labelFormatFunction: function(value, type){
+              if (type === "value"){
+                return parseInt(value);
+              }
+              return value;
+            },
+            values: [ 5000 ],
+            visibleElements: {
+              labels: true,
+              rangeLabels: true
+            }
+          });
+
+           var querySmartUtils = document.getElementById("query-SmartUtils");
+
+           // GraphicsLayer for displaying results
+          var resultsLayer = new GraphicsLayer();
+
+
+         var map = new Map({
+                  basemap: "streets",
+                  layers: [smartUtilsLayer]
+                });
+
+
+          var view = new MapView({
+                  container: "viewDiv",
+                  map: map,
+                  center: [36.8, -1.3],
+                  zoom: 13
+                });
+                view.ui.add("infoDiv", "top-right");
+
+
+
+  
+
+   var icon = new L.icon({
+                    iconUrl: 'img/dental.png', 
+                    iconSize:     [80, 90], // width and height of the image in pixels
+                    shadowSize:   [35, 20], // width, height of optional shadow image
+                    iconAnchor:   [12.5, 30], // point of the icon which will correspond to marker's location
+                    shadowAnchor: [12, 6],  // anchor point of the shadow. should be offset
+                    popupAnchor:  [0, -25] // point from which the popup should open relative to the iconAnchor
+                  });
+
+  
+
+
+
+ 
+  
+
+   
+
+    var smartUtils,
+        $body = $('body'),
+        $locate = $('#locate'),
+        $findNearest = $('#find-nearest'),
+        $status = $('#status');
+
+
+  
+        //$('#loader').fadeOut();
+        $body.addClass('loaded');
+       
+        
+
+        $locate.fadeIn().on('click', function(e) {
+            
+            $status.html('Droping pin at your location...');
+            
+            if (!navigator.geolocation){ //if the browser is unable to get current location,then give the error message
+                alert("<p>Sorry, your browser does not support Geolocation</p>");
+                return;
+            }
+            
+            $body.removeClass('loaded');
+              
+            navigator.geolocation.getCurrentPosition(success, error); //if the browser is able to get current location then drop the pin
+            
+           $locate.fadeOut();
+            
+        });   
+ 
+
+
+    function success(position) {
+        
+        $body.addClass('loaded');
+        
+        var currentPos = [position.coords.latitude,position.coords.longitude]; //after successfully getting location, show lat and long
+        
+        map.setView(currentPos, zoomLevel); //set the map at zoom level 13 and the position of the user
+
+        var myLocation = L.marker(currentPos, {draggable: true, icon: pinIcon}) //the pin can be dragged to the user's desired location
+                            .addTo(map)
+                            .bindTooltip("Drag pin to desired location") //message of the tooltip
+                            .openTooltip(); //tooltip remains open and does not dissapear
+                            
+        
+        
+        var newPos = [myLocation.getLatLng().lat, myLocation.getLatLng().lng];
+        
+        myLocation.on('dragend', function (e) {
+        newPos = [myLocation.getLatLng().lat, myLocation.getLatLng().lng]; //the dragged position becomes the new position
+    
+        });
+        };
+       
+
+
+    function error() {
+        alert("Unable to retrieve your location");
+    };
+
+    // return an array of all the values in the
+          // SpecialistType field of the wells layer
+          function getValues(response) {
+            var features = response.features;
+            var values = features.map(function(feature) {
+              return feature.properties.SpecialistType;
+            });
+            return values;
+          }
+
+          // return an array of unique values in
+          // the STATUS2 field of the smartutils layer
+          function getUniqueValues(values) {
+            var uniqueValues = [];
+
+            values.forEach(function(item, i) {
+              if ((uniqueValues.length < 1 || uniqueValues.indexOf(item) === -1) && item !== "") {
+                uniqueValues.push(item);
+              }
+            });
+            return uniqueValues;
+          }
+
+          // Add the unique values to the wells type
+          // select element. This will allow the user
+          // to filter specialists by type.
+          function addToSelect(values) {
+            values.sort();
+            values.forEach(function(value) {
+              var option = document.createElement("option");
+              option.text = value;
+              specialistTypeSelect.add(option);
+            });
+
+            return setSpecialistDefinitionExpression(specialistTypeSelect.value);
+          }
+
+          // set the definition expression on the specialists
+          // layer to reflect the selection of the user
+          function setSpecialistDefinitionExpression(newValue) {
+            smartUtilsLayer.definitionExpression = "SpecialistType = '" + newValue + "'";
+
+            if (!smartUtilsLayer.visible) {
+              smartUtilsLayer.visible = true;
+            }
+
+            return queryForSpecialistsGeometries();
+          }
+
+          //Get all the geometries of the wells layer
+          // the createQuery() method creates a query
+          // object that respects the definitionExpression
+          // of the layer
+          function queryForSpecialistsGeometries() {
+            var smartUtilsLayerQuery = smartUtilsLayer.createQuery();
+
+            return smartUtilsLayer.queryFeatures(smartUtilsLayerQuery).then(function(response) {
+              specialistsGeometries = response.features.map(function(feature) {
+                return feature.geometry;
+              });
+
+              return specialistsGeometries;
+            });
+          }
+
+
+     
+    // creates a single buffer polygon around
+          // the well geometries
+
+            var bufferGraphic = null;
+          function createBuffer(locatePoint) {
+            var bufferDistance = distanceSlider.values[0];
+            var locateBuffers = geometryEngine.geodesicBuffer(locatePoint, [bufferDistance], "meters", true);
+            locateBuffer = locateBuffers[0];
+
+            if(bufferGraphic){
+              bufferGraphic.geometry = locateBuffer;
+            } else {
+              // add the buffer to the view as a graphic
+              bufferGraphic = new Graphic({
+                geometry: locateBuffer,
+                symbol: {
+                  type: "simple-fill", // autocasts as new SimpleFillSymbol()
+                  outline: {
+                    width: 1.5,
+                    color: [255, 128, 0, 0.5]
+                  },
+                  style: "none"
+                }
+              });
+              view.graphics.add(bufferGraphic);
+            }
+          }
+
+          // create a buffer around the queried locate geometries
+          distanceSlider.on("thumb-drag", function(event) {
+            if(event.state === "stop"){
+              createBuffer(locateGeometries);
+            }
+          });
+
+          querySmartUtils.addEventListener("click", function() {
+            querySmartUtils().then(displayResults);
+          });
+
+          function querySmartUtils() {
+            var query = smartUtilsLayer.createQuery();
+            query.where = "SpecialistType = '"  + newValue + "'";
+            query.geometry =locateBuffer;
+            query.spatialRelationship = "intersects";
+
+            return smartUtilsLayer.queryFeatures(query);
+          }
+
+          // display the smartutils query results in the
+          // view and print the number of results to the DOM
+          function displayResults(results) {
+            resultsLayer.removeAll();
+            var features = results.features.map(function(graphic) {
+              graphic.symbol = {
+                type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+                style: "diamond",
+                size: 6.5,
+                color: "darkorange"
+              };
+              return graphic;
+            });
+            var numSmartUtils = features.length;
+            document.getElementById("results").innerHTML = numSmartUtils + " specialists found";
+            resultsLayer.addMany(features);
+          }
+        });
+</script>
+
+<body>
+      <div id="viewDiv"></div>
+      <div id="infoDiv" class="esri-widget">
+        <div id="drop-downs">
+          Select specialist type:
+          <select id="specialist-type" class="esri-widget"></select>
+        </div>
+        User buffer distance (meters):
+        <div id="distance" class="slider"></div>
+        <div id="mag" class="slider"></div>
+        <button id='locate'>
+            Drop Pin
+        </button>
+        <button id="query-SmartUtils" class="esri-widget">Query Specialists</button>
+        <div id="results" class="esri-widget"></div>
+      </div>
+    </body>
+</html>

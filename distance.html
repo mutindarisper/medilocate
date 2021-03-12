@@ -1,0 +1,167 @@
+<html>
+<head>
+  <script src="https://code.jquery.com/jquery-3.1.0.min.js" integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s=" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet@1.0.1/dist/leaflet.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Specialists</title>
+
+  <link rel='shortcut icon' type='image/x-icon' href='favicon.ico' />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css">
+  
+
+   <!-- Load Leaflet from CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+    crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+    integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+    crossorigin=""></script>
+
+
+  <!-- Load Esri Leaflet from CDN -->
+  <script src="https://unpkg.com/esri-leaflet@3.0.0/dist/esri-leaflet.js"></script>
+  <script src="https://unpkg.com/esri-leaflet-vector@3.0.0/dist/esri-leaflet-vector.js"></script>
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.js'></script>
+<link href='https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.css' rel='stylesheet' />
+
+<!-- Load Esri Leaflet Geocoder from CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/esri-leaflet-geocoder@3.0.0/dist/esri-leaflet-geocoder.css">
+  <script src="https://unpkg.com/esri-leaflet-geocoder@3.0.0/dist/esri-leaflet-geocoder.js"></script>
+
+  <style>
+    body { margin:0; padding:0; }
+    #map {
+      position: absolute;
+      top:0;
+      bottom:0;
+      right:0;
+      left:0;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      color: #323232;
+    }
+  </style>
+
+</head>
+<body>
+ <div id="map">
+    <button id="reload" onClick="window.location.reload();" style="position: absolute;
+    top: 200px;
+    left: 0px;">Reload</button>
+    </div>
+    <div id='userInterface'>
+        <button id='locate'>
+            Drop Pin
+        </button>
+        <button id='find-nearest'>
+            Find Nearest Specialist
+        </button>
+    </div>
+ </body>
+
+
+<script>
+
+  const smartUtilsLayer = L.esri.featureLayer({
+    
+      url: "https://services8.arcgis.com/SOqSu0Nc0YVnxZDD/arcgis/rest/services/service_e57b964e2c1c4340aaa10586746347c7/FeatureServer/0",
+      pointToLayer: (feature, latlng) => {
+        switch (feature.properties.SpecialistType){
+                case 'Obstretics/Gynecologist':
+                    var gynIcon = new L.icon({
+                        iconUrl: 'img/gyna.png', 
+                        iconSize:     [70, 50], // width and height of the image in pixels
+                        shadowSize:   [35, 20], // width, height of optional shadow image
+                        iconAnchor:   [12.5, 30], // point of the icon which will correspond to marker's location
+                        shadowAnchor: [12, 6],  // anchor point of the shadow. should be offset
+                        popupAnchor:  [0, -25] // point from which the popup should open relative to the iconAnchor
+
+                  });
+                
+                     return L.marker(latlng, {icon: gynIcon});
+                
+                 case 'Dentist':
+                    var dentIcon = new L.icon({
+                        iconUrl: 'img/dental.png', 
+                        iconSize:     [70, 60], // width and height of the image in pixels
+                        shadowSize:   [35, 20], // width, height of optional shadow image
+                        iconAnchor:   [12.5, 30], // point of the icon which will correspond to marker's location
+                        shadowAnchor: [12, 6],  // anchor point of the shadow. should be offset
+                        popupAnchor:  [0, -25] // point from which the popup should open relative to the iconAnchor
+                  });
+               
+                    return L.marker(latlng, {icon: dentIcon});
+                
+              
+
+               }
+
+        
+      }
+    }).addTo(map);
+
+   smartUtilsLayer.bindPopup(function (layer) {
+      return L.Util.template('<b>{SpecialistType}</b><br>{SpecialistAvailable}</br>', layer.feature.properties);
+    });
+
+   var smartUtils,
+        $body = $('body'),
+        $locate = $('#locate'),//var locate= locate id
+        $findNearest = $('#find-nearest'),
+        $status = $('#status');
+
+
+        //$('#loader').fadeOut();
+        $body.addClass('loaded');
+       
+        
+
+        $locate.fadeIn().on('click', function(e) {
+            
+            $status.html('Droping pin at your location...');
+            
+            if (!navigator.geolocation){ //if the browser is unable to get current location,then give the error message
+                alert("<p>Sorry, your browser does not support Geolocation</p>");
+                return;
+            }
+            
+            $body.removeClass('loaded');
+              
+            navigator.geolocation.getCurrentPosition(success, error); //if the browser is able to get current location then drop the pin
+            
+           $locate.fadeOut();
+            
+        }); 
+
+
+
+  
+ 
+  function sortResults(position) {
+    // Grab current position
+    var latlon = new LatLon(position.coords.latitude, position.coords.longitude);
+ 
+    var locations = document.getElementById('locations');
+    var locationList = locations.querySelectorAll('li');
+    var locationArray = Array.prototype.slice.call(locationList, 0);
+ 
+    locationArray.sort(function(a,b){
+      var locA  = a.getAttribute('data-latlon').split(',');
+      var locB  = b.getAttribute('data-latlon').split(',');
+ 
+      distA = latlon.distanceTo(new LatLon(Number(locA[0]),Number(locA[1])));
+      distB = latlon.distanceTo(new LatLon(Number(locB[0]),Number(locB[1])));
+      return distA - distB;
+    });
+ 
+    //Reorder the list
+    locations.innerHTML = "";
+    locationArray.forEach(function(el) {
+      locations.appendChild(el);
+    });
+ 
+};
+</script>
+</html>
